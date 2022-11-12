@@ -150,7 +150,7 @@ async def addUserToList(interaction, username):
         knownPeople[username] = interaction.user.nick
     else:
         knownPeople[username] = interaction.user.name
-    with open("/home/alex/Data/neos/knownUsers.dict", 'w') as file:
+    with open(f"{fileDir}/knownUsers.dict", 'w') as file:
         file.write(str(knownPeople))
 
 
