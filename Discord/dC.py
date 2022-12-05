@@ -106,25 +106,11 @@ async def on_message(message):
             await send(connectedClient, content)
 
 
-@client.event
-async def sendMessage(channelID, message):
-    channel = client.get_channel(channelID)
-    try:
-        dcLogger.debug(f"Bot Sending {message} to {channel.name}")
-        await channel.send(message)
-    except discord.errors.HTTPException:
-        await channel.send(message[0:4000])
-
-
-@client.event
-async def fetchMessages(channelID, amount):
-    history = ""
-    channel = client.get_channel(channelID)
-    dcLogger.debug(f"Bot fetching history for {channel.name}")
-    async for message in channel.history(limit=amount):
-        formatted = await formatMessage(message, "¦")
-        history = f"\n{formatted}{history}"
-    return history
+@client.tree.command(name="neos_link", description="Command to Link your discord account to a Neos Username.")
+@app_commands.describe(username='Your NeosVR Username to link to.')
+async def link(interaction: discord.Interaction, username: str):
+    await addUserToList(interaction, username)
+    await interaction.response.send_message(f"Added {interaction.user} to the known players list.")
 
 
 @client.tree.command(name="change_channel", description="Command to change the channel that the NeosVR bot talks in.")
@@ -136,11 +122,31 @@ async def changeChannel(interaction: discord.Interaction):
     await interaction.response.send_message(f"Changed Neos Link Channel to {interaction.channel.name}")
 
 
-@client.tree.command(name="neos_link", description="Command to Link your discord account to a Neos Username.")
-@app_commands.describe(username='Your NeosVR Username to link to.')
-async def link(interaction: discord.Interaction, username: str):
-    await addUserToList(interaction, username)
-    await interaction.response.send_message(f"Added {interaction.user} to the known players list.")
+@client.event
+async def sendMessage(channelID, message):
+    channel = client.get_channel(channelID)
+    try:
+        dcLogger.debug(f"Bot Sending {message} to {channel.name}")
+        await channel.send(message)
+    except discord.errors.HTTPException:
+        await channel.send(message[0:4000])
+
+
+@client.event
+async def fetchMentionedUser(name, discriminator):
+    user = discord.utils.get(client.users, name=name, discriminator=discriminator)
+    return user
+
+
+@client.event
+async def fetchMessages(channelID, amount):
+    history = ""
+    channel = client.get_channel(channelID)
+    dcLogger.debug(f"Bot fetching history for {channel.name}")
+    async for message in channel.history(limit=amount):
+        formatted = await formatMessage(message, "¦")
+        history = f"\n{formatted}{history}"
+    return history
 
 
 async def addUserToList(interaction, username):
@@ -194,7 +200,22 @@ async def stripRtf(text):
     return text
 
 
+async def findMentionedUser(message):
+    if "@" in message:
+        try:
+            before = message.split("@")
+            after = before[1].split("#")
+            name = after[0]
+            discriminator = after[1][0:4]
+            user = await fetchMentionedUser(name, discriminator)
+            message = before[0] + user.mention + after[1][4:-1]
+        except IndexError:
+            dcLogger.info(f"Could not find user in {message}")
+    return message
+
+
 async def createMessage(messageDict):
+    messageDict['Message'] = await findMentionedUser(messageDict['Message'])
     worldType = ["Pr", "L", "C", "C+", "R", "P", "H"]
     message = f"{knownPeople[messageDict['UserID']]} ({worldType[int(messageDict['WorldStatus'])]}) - {messageDict['Message'].replace('¦', '|')}"
     return message
@@ -255,7 +276,6 @@ async def wsMain(websocket):
 
 
 async def wsStart():
-    await asyncio.sleep(10)
     async with ws.serve(wsMain, hostName, serverPort):
         dcLogger.info(f"WS Started")
         await asyncio.Future()  # run forever
