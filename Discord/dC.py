@@ -14,7 +14,7 @@ load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 hostName = os.getenv('HOST_NAME')
 serverPort = os.getenv('PORT')
-NLChannelID = os.getenv('NEOS_LINK_CHANNEL_ID')
+NLChannelID = int(os.getenv('NEOS_LINK_CHANNEL_ID'))
 serverID = os.getenv('SERVER_ID')
 loggingDir = os.getenv('LOG_DIR')
 fileDir = os.getenv('FILE_DIR')
@@ -54,7 +54,7 @@ dcHandler = logging.handlers.RotatingFileHandler(
 dcHandler.setFormatter(formatter)
 dcLogger.addHandler(dcHandler)
 
-NLChannel = discord.Object(id=NLChannelID, type=discord.TextChannel)
+NLChannel = discord.Object(id=NLChannelID, type=discord.TextChannel)  #
 knownPeople = {}
 discordServer = discord.Object(id=serverID)
 dIntents = discord.Intents.all()
@@ -77,8 +77,8 @@ clients = {}
 
 helpMessage = ''' 
 __NeosVR Link__
-!NL Connect - Changes the Link Channel
-!NL Link <Neos UserID> - adds the user to the known players list.
+/NL Connect - Changes the Link Channel
+/NL Link <Neos UserID> - adds the user to the known players list.
 '''
 
 
@@ -255,13 +255,14 @@ async def wsMain(websocket):
 
 
 async def wsStart():
+    await asyncio.sleep(10)
     async with ws.serve(wsMain, hostName, serverPort):
         dcLogger.info(f"WS Started")
         await asyncio.Future()  # run forever
 
 
 async def presenceChange():
-    await asyncio.sleep(10)
+    await asyncio.sleep(360)
     oldClients = 0
     while True:
         if len(clients) == 1:
